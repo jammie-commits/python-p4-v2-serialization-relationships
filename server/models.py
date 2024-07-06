@@ -1,5 +1,3 @@
-# server/models.py
-
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import MetaData
 from sqlalchemy_serializer import SerializerMixin
@@ -16,9 +14,10 @@ metadata = MetaData(naming_convention=convention)
 
 db = SQLAlchemy(metadata=metadata)
 
-
-class Zookeeper(db.Model):
+class Zookeeper(db.Model, SerializerMixin):
     __tablename__ = 'zookeepers'
+    serialize_only = ('id', 'name', 'animals.name', 'animals.species',)
+    serialize_rules = ()
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, unique=True)
@@ -26,29 +25,34 @@ class Zookeeper(db.Model):
 
     animals = db.relationship('Animal', back_populates='zookeeper')
 
-
-class Enclosure(db.Model):
+class Enclosure(db.Model, SerializerMixin):
     __tablename__ = 'enclosures'
+    serialize_rules = ('-animals.enclosure',)
 
     id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    location = db.Column(db.String(100), nullable=False)
+    capacity = db.Column(db.Integer, nullable=False)
     environment = db.Column(db.String)
     open_to_visitors = db.Column(db.Boolean)
 
     animals = db.relationship('Animal', back_populates='enclosure')
 
+    def __repr__(self):
+        return f"<Enclosure {self.name}>"
 
-class Animal(db.Model):
+class Animal(db.Model, SerializerMixin):
     __tablename__ = 'animals'
+    serialize_rules = ('-zookeeper.animals', '-enclosure.animals',)
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, unique=True)
     species = db.Column(db.String)
-
     zookeeper_id = db.Column(db.Integer, db.ForeignKey('zookeepers.id'))
     enclosure_id = db.Column(db.Integer, db.ForeignKey('enclosures.id'))
 
-    enclosure = db.relationship('Enclosure', back_populates='animals')
     zookeeper = db.relationship('Zookeeper', back_populates='animals')
+    enclosure = db.relationship('Enclosure', back_populates='animals')
 
     def __repr__(self):
         return f'<Animal {self.name}, a {self.species}>'
